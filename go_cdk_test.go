@@ -7,7 +7,6 @@ package main
 // 	"github.com/aws/aws-cdk-go/awscdk/v2/assertions"
 // 	"github.com/aws/jsii-runtime-go"
 // )
-
 // example tests. To run these tests, uncomment this file along with the
 // example resource in go_cdk_test.go
 // func TestGoCdkStack(t *testing.T) {
