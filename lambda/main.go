@@ -1,25 +1,35 @@
 package main
 
 import (
-	"fmt"
 	"lambda-func/app"
+	"lambda-func/middleware"
+	"net/http"
 
+	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 )
 
-type MyEvent struct {
-	UserName string `json:"username"`
-}
-
-func HandleRequest(event MyEvent) (string, error) {
-	if event.UserName == "" {
-		return "", fmt.Errorf("username can not be empty")
-	}
-
-	return fmt.Sprintf("Successfully called by: %s", event.UserName), nil
-}
-
 func main() {
 	myApp := app.NewApp()
-	lambda.Start(myApp.ApiHandler.RegisterUserHandler)
+	lambda.Start(
+		func(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+			switch request.Path {
+
+			case "/register":
+				return myApp.ApiHandler.RegisterUserHandler(request)
+
+			case "/login":
+				return myApp.ApiHandler.LoginUserHandler(request)
+
+			case "/protected":
+				return middleware.ValidateJWTMiddleware(myApp.ApiHandler.ProtestedRoute)(request)
+
+			default:
+				return events.APIGatewayProxyResponse{
+					Body:       "Not found",
+					StatusCode: http.StatusNotFound,
+				}, nil
+			}
+		},
+	)
 }

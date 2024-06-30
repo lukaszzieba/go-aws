@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/aws/aws-cdk-go/awscdk/v2"
+	"github.com/aws/aws-cdk-go/awscdk/v2/awsapigateway"
 	"github.com/aws/aws-cdk-go/awscdk/v2/awsdynamodb"
 	"github.com/aws/aws-cdk-go/awscdk/v2/awslambda"
 	"github.com/aws/constructs-go/constructs/v10"
@@ -17,8 +18,13 @@ func NewGoCdkStack(scope constructs.Construct, id string, props *GoCdkStackProps
 	if props != nil {
 		sprops = props.StackProps
 	}
+
+	// NOTE:
+	// Create stack
 	stack := awscdk.NewStack(scope, &id, &sprops)
 
+	// NOTE:
+	// Create table
 	table := awsdynamodb.NewTable(stack, jsii.String("myUserTable"), &awsdynamodb.TableProps{
 		PartitionKey: &awsdynamodb.Attribute{
 			Name: jsii.String("username"),
@@ -27,6 +33,8 @@ func NewGoCdkStack(scope constructs.Construct, id string, props *GoCdkStackProps
 		TableName: jsii.String("userTable"),
 	})
 
+	// NOTE:
+	// Create lambda
 	myFunction := awslambda.NewFunction(
 		stack,
 		jsii.String("myLambdaFunction"),
@@ -38,6 +46,37 @@ func NewGoCdkStack(scope constructs.Construct, id string, props *GoCdkStackProps
 	)
 
 	table.GrantReadWriteData(myFunction)
+
+	// NOTE:
+	// Add api gateway
+	api := awsapigateway.NewRestApi(
+		stack,
+		jsii.String("myAPIGateway"),
+		&awsapigateway.RestApiProps{
+			DefaultCorsPreflightOptions: &awsapigateway.CorsOptions{
+				AllowHeaders: jsii.Strings("Content-Type", "Authorization"),
+				AllowMethods: jsii.Strings("GET", "POST", "DELETE", "PUT", "PATCH", "OPTIONS"),
+				AllowOrigins: jsii.Strings("*"),
+			},
+			DeployOptions: &awsapigateway.StageOptions{
+				LoggingLevel: awsapigateway.MethodLoggingLevel_INFO,
+			},
+		},
+	)
+
+	integration := awsapigateway.NewLambdaIntegration(myFunction, nil)
+
+	// Define register routes
+	registerResource := api.Root().AddResource(jsii.String("register"), nil)
+	registerResource.AddMethod(jsii.String("POST"), integration, nil)
+
+	// Define login routes
+	loginResource := api.Root().AddResource(jsii.String("login"), nil)
+	loginResource.AddMethod(jsii.String("POST"), integration, nil)
+
+	// Define protecteed routes
+	protectedResource := api.Root().AddResource(jsii.String("protected"), nil)
+	protectedResource.AddMethod(jsii.String("GET"), integration, nil)
 
 	return stack
 }
